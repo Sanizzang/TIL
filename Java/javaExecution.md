@@ -52,3 +52,5 @@ JVM이 프로세스로써 수행되기 위해 OS로부터 할당받는 메모리
 
 - Native Method Stack
   각 스레드마다 하나씩 생성된다. 다른 언어(C/C++ 등)의 메서드 호출을 위해 할당되는 구역 언어에 맞게 Stack이 형성되는 구역이다. JNI(Java Native Interface)라는 표준 규약을 제공한다.
+
+  
