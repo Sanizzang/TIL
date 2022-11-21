@@ -55,6 +55,8 @@ public class Walker {
         memento.x = this.currentX;
         memento.y = this.currentY;
         memento.actionList = (ArrayList<String>)this.actionList.clone();
+        
+        return memento;
     }
 
     public void restoreMemento(Memento memento) {
