@@ -15,7 +15,8 @@ Aggregator.java
 
 ```java
 public interface Aggregator {
-    Interator iterator();
+    // Iterator 객체를 만들어서 반환해주는 메서드
+    Iterator iterator();
 }
 ```
 
@@ -25,12 +26,13 @@ Iterator.java
 public interface Iterator {
     // Aggregator의 다음 구성 데이터를 얻을 수 있도록 함.(얻을 수 있다면 True 반환)
     boolean next();
-    // 구성 데이터를 하나 얻어 반환 (구성데이터에 대한 타입은 정해지지 않아야 하므로 Object여야 한다.)
+    // 구성 데이터를 하나 얻어 반환 (구성데이터에 대한 타입은 정해지지 않아야 하므로 Object로 반환.)
     Object current();
 }
 ```
 
 Item.java
+Array 배열 데이터
 
 ```java
 public class Item {
@@ -58,11 +60,13 @@ public class Array implements Aggregator {
     public Array(Item[] items) {
         this.items = items;
     }
-
+    
+    // ArrayIterator 객체에서 쓰일 예정
     public Item getItem(int index) {
         return items[index];
     }
 
+    // ArrayIterator 객체에서 쓰일 예정
     public int getCount() {
         return items.length;
     }
@@ -79,6 +83,7 @@ ArrayIterator.java
 ```java
 public class ArrayIterator implements Iterator {
     private Array array;
+    // 배열에서 현재 받을 수 있는 데이터 항목에 대한 인덱스
     private int index;
 
     public ArrayIterator(Array array) {
