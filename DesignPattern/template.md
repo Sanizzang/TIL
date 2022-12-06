@@ -157,14 +157,14 @@ public class MainEntry {
 
         System.out.println("[CASE-1]");
         DisplayArticleTemplate style1 = new SimpleDisplayArticle(article);
-        style.display();
+        style1.display();
 
         System.out.println();
 
 
         System.out.println("[CASE-2]");
-        DisplayArticleTemplate style1 = new CaptionDisplayArticle(article);
-        style.display();
+        DisplayArticleTemplate style2 = new CaptionDisplayArticle(article);
+        style2.display();
      }
 }
 ```
