@@ -86,7 +86,7 @@ public class MainEntry {
         Walker.Memento memento = null;
 
         while(true) {
-            String action = actions.random.nextInt(4);
+            String action = actions[random.nextInt(4)];
             double distance = walker.walk(action);
             System.out.println(action + " " + distance);
 
@@ -96,7 +96,7 @@ public class MainEntry {
 
             if(minDistance > distance) {
                 minDistance = distance;
-                memento = Walker.createMemento();
+                memento = walker.createMemento();
             } else {
                 if(memento != null) {
                     walker.restoreMemento(memento);

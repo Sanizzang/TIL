@@ -104,28 +104,6 @@ public class SimpleDisplayArticle extends DisplayArticleTemplate {
 }
 ```
 
-DisplayArticleTemplate.java
-
-```java
-public abstract class DisplayArticleTemplate {
-    protected Article article;
-
-    public DisplayArticleTemplate(Article article) {
-        this.article = article;
-    }
-
-    public final void display() {
-        title();
-        content();
-        footer();
-    }
-
-    protected abstract void title();
-    protected abstract void content();
-    protected abstract void footer();
-}
-```
-
 CaptionDisplayArticle.java
 
 ```java
@@ -179,14 +157,14 @@ public class MainEntry {
 
         System.out.println("[CASE-1]");
         DisplayArticleTemplate style1 = new SimpleDisplayArticle(article);
-        style.display();
+        style1.display();
 
         System.out.println();
 
 
         System.out.println("[CASE-2]");
-        DisplayArticleTemplate style1 = new CaptionDisplayArticle(article);
-        style.display();
+        DisplayArticleTemplate style2 = new CaptionDisplayArticle(article);
+        style2.display();
      }
 }
 ```
