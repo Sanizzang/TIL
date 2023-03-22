@@ -147,3 +147,22 @@ bootRun {
 ```
 $  gradle bootRun -Pargs="--server.port=8081"
 ```
+
+application.yml
+
+```yml
+server:
+  port: 0
+```
+
+랜덤 포트를 사용하겠다는 의미, 같은 서비스를 사용하더라도 매번 실행할 때마다 랜덤한 포트 번호가 할당
+
+```yml
+eureka:
+  instance:
+    instanc-id: ${spring.cloud.client.hostname}:${spring.application.instance_id:${random.value}}
+```
+
+- Spring Cloud의 서비스 디스커버리를 사용하는 애플리케이션에서 사용될 수 있는 인스턴스 ID 생성하는데 사용
+- ${spring.cloud.client.hostname}: 해당 인스턴스가 실행되는 호스트의 이름을 가져오는 Spring 환경 속성, 서비스 디스커버리를 사용하여 애플리케이션 인스턴스를 식별하는데 사용
+- ${spring.application.instance_id:${random.value}}: 인스턴스의 고유 ID 생성
