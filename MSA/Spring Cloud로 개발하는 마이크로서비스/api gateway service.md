@@ -303,6 +303,10 @@ public class CustomFilter extends AbstractGatewayFilterFactory<CustomFilter.Conf
             }));
         }
     }
+
+    public static class Config {
+        // Put the configuration properties
+    }
 }
 
 ```
@@ -310,3 +314,231 @@ public class CustomFilter extends AbstractGatewayFilterFactory<CustomFilter.Conf
 Custom 필터는 반드시 AbstractGatewayFilterFactory를 상속 받아서 등록하면 된다.
 
 apply 메서드에 작동하고자 하는 내용을 기술.
+
+```yml
+spring:
+  application:
+    name: apigateway-service
+  cloud:
+    gateway:
+      routes:
+        - id: first-service
+          uri: http://localhost:8081/
+          predicates:
+            - Path=/first-service/**
+          filters:
+            #            - AddRequestHeader=first-request, first-request-header2
+            #            - AddResponseHeader=first-response, first-response-header2
+            - CustomFilter
+        - id: second-service
+          uri: http://localhost:8082/
+          predicates:
+            - Path=/second-service/**
+          filters:
+            #            - AddRequestHeader=second-request, second-request-header2
+            #            - AddResponseHeader=second-response, second-response-header2
+            - CustomFilter
+```
+
+application.yml 파일에서 CustomFilter를 추가해 주도록 하자
+
+### Spring Cloud Gateway - Global Filter 적용
+
+- Global Filter는 어떠한 라우트 정보가 실행된다고 하더라도 공통적으로 실행될 수 있는 필터
+- Global Filter는 호출되는 과정상 모든 필터의 가장 첫번째로 실행이 되고 가장 마지막에 종료가 된다.
+
+Global Filter 생성
+
+```java
+@Component
+@Slf4j
+public class GlobalFilter extends AbstractGatewayFilterFactory<GlobalFilter.Config> {
+    public GlobalFilter() {
+        super(Config.class);
+    }
+
+    @Override
+    public GatewayFilter apply(Config config) {
+        // Custom PreFilter
+        return ((exchange, chain) -> {
+            ServerHttpRequest request = exchange.getRequest();
+            ServerHttpResponse response = exchange.getResponse();
+
+            log.info("Global Filter baseMessage: {}}", config.getBaseMessage());
+
+            if (config.isPreLogger()) {
+                log.info("Global Filter Start: request id -> {}", request.getId());
+            }
+
+            // Global Post Filter
+            return chain.filter(exchange).then(Mono.fromRunnable(() -> {
+                if (config.isPostLogger()) {
+                    log.info("Global Filter End: response code -> {}", response.getStatusCode());
+                }
+
+            }));
+        });
+    }
+
+    @Data
+    public static class Config {
+        private String baseMessage;
+        private boolean preLogger;
+        private boolean postLogger;
+    }
+}
+```
+
+- application.yml 코드 추가
+
+```yml
+spring:
+  application:
+    name: apigateway-service
+  cloud:
+    gateway:
+      default-filters:
+        - name: GlobalFilter
+          args:
+            baseMessage: Spring Cloud Gateway Global Filter
+            preLogger: true
+            postLogger: true
+      routes:
+        - id: first-service
+          uri: http://localhost:8081/
+          predicates:
+            - Path=/first-service/**
+          filters:
+            #            - AddRequestHeader=first-request, first-request-header2
+            #            - AddResponseHeader=first-response, first-response-header2
+            - CustomFilter
+        - id: second-service
+          uri: http://localhost:8082/
+          predicates:
+            - Path=/second-service/**
+          filters:
+            #            - AddRequestHeader=second-request, second-request-header2
+            #            - AddResponseHeader=second-response, second-response-header2
+            - CustomFilter
+```
+
+- baseMessage: 필터에서 사용될 메시지를 설정한다.
+- preLogger, postLogger: 각각 사전 처리와 후처리 시 로깅을 수행할 지 여부를 설정한다.
+
+### Spring Cloud Gateway - Logging Filter 적용
+
+```java
+@Component
+@Slf4j
+public class LoggingFilter extends AbstractGatewayFilterFactory<LoggingFilter.Config> {
+    public LoggingFilter() {
+        super(Config.class);
+    }
+
+    @Override
+    public GatewayFilter apply(Config config) {
+//        // Custom PreFilter
+//        return ((exchange, chain) -> {
+//            ServerHttpRequest request = exchange.getRequest();
+//            ServerHttpResponse response = exchange.getResponse();
+//
+//            log.info("Global Filter baseMessage: {}}", config.getBaseMessage());
+//
+//            if (config.isPreLogger()) {
+//                log.info("Global Filter Start: request id -> {}", request.getId());
+//            }
+//
+//            // Global Post Filter
+//            return chain.filter(exchange).then(Mono.fromRunnable(() -> {
+//                if (config.isPostLogger()) {
+//                    log.info("Global Filter End: response code -> {}", response.getStatusCode());
+//                }
+//
+//            }));
+//        });
+
+        GatewayFilter filter = new OrderedGatewayFilter((exchange, chain) -> {
+            ServerHttpRequest request = exchange.getRequest();
+            ServerHttpResponse response = exchange.getResponse();
+
+            log.info("Logging Filter baseMessage: {}}", config.getBaseMessage());
+
+            if (config.isPreLogger()) {
+                log.info("Logging PRE Filter: request id -> {}", request.getId());
+            }
+
+            // Global Post Filter
+            return chain.filter(exchange).then(Mono.fromRunnable(() -> {
+                if (config.isPostLogger()) {
+                    log.info("Logging POST Filter: response code -> {}", response.getStatusCode());
+                }
+
+            }));
+        }, Ordered.HIGHEST_PRECEDENCE);
+
+        return filter;
+    }
+
+    @Data
+    public static class Config {
+        private String baseMessage;
+        private boolean preLogger;
+        private boolean postLogger;
+    }
+
+}
+```
+
+OrderedGatewayFilter를 사용하여 Filter Chain에서의 우선순위를 높인다.
+
+```yml
+filters:
+  - name: CustomFilter
+  - name: LoggingFilter
+    args:
+      baseMessage: Hi, there.
+      preLogger: true
+      postLogger: true
+```
+
+추가적인 파라미터를 넣을라면
+name: 옵션을 추가해야함
+
+### Spring Cloud Gateway - Eureka 연동
+
+apigateway-service, first-service, second-service application.yml eureka 등록
+
+```
+eureka:
+  client:
+    register-with-eureka: true
+    fetch-registry: true
+    service-url:
+      defaultZone: http://localhost:8761/eureka
+```
+
+apigateway-service 라우팅 정보 변경
+
+```yml
+routes:
+  - id: first-service
+    uri: lb://MY-FIRST-SERVICE
+    predicates:
+      - Path=/first-service/**
+
+  - id: second-service
+    uri: lb://MY-SECOND-SERVICE
+    predicates:
+      - Path=/second-service/**
+```
+
+기존에는 http, ip, port 번호로 명시를 해줬는데, port 번호를 명시한다는건 그 port번호만 사용한다는 얘기.
+우리가 설정을 할 때 랜덤 port로 설정, 랜덤 port로 설정한다는 얘기는 자유롭게 인스턴스를 계속 늘리거나 빼거나 할 수 있는 작업을 의미하는건데 이렇다보니 port번호가 몇번으로 지정될지 모르는 상황.
+따라서 api gateway service에서는 EUREKA에 naming으로 등록되어진 이름(MY-FIRST-SERVICE)을 가지고 포워딩을 시켜주겠다는 의미
+
+#### Environment 객체, @Value 어노테이션
+
+- Environment: Spring의 환경 설정 정보를 관리하는 객체.
+  이 객체는 Spring의 Application Context가 로딩될 때 생성되어서, Bean으로 등록되어 사용할 수 있다. Environment 객체를 사용하면 환경 변수, 시스템 프로퍼티, Spring 설정 등을 읽어올 수 있다.
+- @Value: Spring Framework에서 제공하는 어노테이션 중 하나로 Spring 설정 파일에서 정의한 값을 가져올 수 있다.
+  이를 통해, 설정파일에서 값을 설정하고 코드에서 이를 사용할 수 있다.
