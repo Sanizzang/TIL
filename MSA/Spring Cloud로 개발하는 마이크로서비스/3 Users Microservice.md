@@ -371,7 +371,7 @@ public class UserController {
    이렇게 생성된 토큰값을 response의 헤더값에 저장을 시킬 것이다.
    그럼 헤더 값이 원래 있던 클라이언트한테 반환이 된다.
 
-#### JWT 생성
+#### JWT 구현
 
 ```yml
 token:
@@ -379,4 +379,36 @@ token:
   expiration_time: 86400000
   # 특수한 토큰을 만들 때 사용되어짐
   secret: user_token
+```
+
+```java
+// AuthenticationFilter.java
+// 사용자 인증에 성공하면 호출되는 메서드
+    @Override
+    protected void successfulAuthentication(HttpServletRequest request,
+                                            HttpServletResponse response,
+                                            FilterChain chain,
+                                            Authentication authResult) throws IOException, ServletException {
+
+        // User: 인증에 성공한 사용자 정보를 담는 클래스
+        String username = ((User) authResult.getPrincipal()).getUsername();
+        UserDto userDetails = userService.getUserDetailsByEmails(username);
+
+        // Key: JWT 토큰 서명에 사용되는 비밀 키
+        // Key.hmacShaKeyFor: Key 객체를 생성하는 유틸리티 메서드
+        Key secretKey = Keys.hmacShaKeyFor(env.getProperty("token.secret").getBytes(StandardCharsets.UTF_8));
+
+        String token = Jwts.builder()
+                // JWT 토큰의 subject를 설정
+                .setSubject(userDetails.getUserId())
+                // JWT 토큰의 만료 시간 설정(현재 시간 + token.expiration_time 값)
+                .setExpiration(new Date(System.currentTimeMillis() + Long.parseLong(env.getProperty("token.expiration_time"))))
+                // JWT 토큰에 서명 추가
+                .signWith(secretKey, SignatureAlgorithm.HS512)
+                // JWT 토큰을 문자열로 변환
+                .compact();
+        // 응답헤더에 token과 userId 추간
+        response.addHeader("token", token);
+        response.addHeader("userId", userDetails.getUserId());
+    }
 ```
