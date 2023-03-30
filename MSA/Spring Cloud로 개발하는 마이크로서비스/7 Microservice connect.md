@@ -213,4 +213,41 @@ public Logger.Level feignLoggerLevel() {
 
 ### ErrorDecoder를 이용한 예외 처리
 
-#### error 패키지 생성,
+#### FeignErrorDecoder 클래스 생성
+
+```java
+public class FeignErrorDecoder implements ErrorDecoder {
+    @Override
+    public Exception decode(String methodKey, Response response) {
+        switch (response.status()) {
+            case 400:
+                break;
+            case 404:
+                if (methodKey.contains("getOrders")) {
+                    return new ResponseStatusException(HttpStatus.valueOf(response.status()),
+                            "User's orders is empty");
+                }
+                break;
+            default:
+                return new Exception(response.reason());
+        }
+
+        return null;
+    }
+}
+```
+
+Spring Cloud Feign을 사용하여 마이크로서비스 간 통신 중 발생하는 에러를 처리.
+
+ErrorDecoder 인터페이스는 Feign에서 발생한 에러를 처리하는데 사용된다. 이 인터페이스를 구현하여 Feign에서 발생한 에러를 캐치하고, 해당 에러에 대한 예외를 반환한다.
+
+decode 메서드는 Feign에서 발생한 에러를 처리하는 데 사용된다. methodKey는 호출된 메서드의 키를, response는 호출된 메서드의 응답을 나타낸다.
+
+- application 메인 클래스에 Bean 추가
+
+```java
+	@Bean
+	public FeignErrorDecoder getFeignErrorDecoder() {
+		return new FeignErrorDecoder();
+	}
+```
