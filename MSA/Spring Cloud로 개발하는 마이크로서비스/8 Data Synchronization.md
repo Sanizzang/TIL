@@ -68,9 +68,6 @@ order-service 인스턴스가 기동이될 때 H2라는 내장DB가 같이 기�
     - 각 Broker에게 담당 파티션 할당 수행
     - Broker 정상 동작 모니터링 관리
 
-Kafka는 기본적으로 메시지를 보내면 그 데이터는 topic이라는 곳에 저장이된다.
-Topic은 어떻게 생성을 하냐먼 임의로 자유롭게 생성할 수 있다.
-
 #### Kafka 서버 기동 - Windows
 
 - Windows에서는 Kafka 실행 명령어는 $KAFKA_HOME\bin\windows 폴더에 저장되어 있음
@@ -79,19 +76,70 @@ Topic은 어떻게 생성을 하냐먼 임의로 자유롭게 생성할 수 있�
 .\bin\windows\kafka-server-start.bat .\config\server.properties
 ```
 
+- Zookeeper 및 Kafka 서버 기동
+
+```
+$KAFKA_HOME/bin/zookeeper-server-start.sh  $KAFKA_HOME/config/zookeeper.properties
+
+ex) .\bin\windows\zookeeper-server-start.bat .\config\zookeeper.properties
+
+$KAFKA_HOME/bin/kafka-server-start.sh  $KAFKA_HOME/config/server.properties
+
+ex) .\bin\windows\kafka-server-start.bat  .\config\server.properties
+```
+
+Kafka는 기본적으로 메시지를 보내면 그 데이터는 topic이라는 곳에 저장이된다.
+Topic는 임의로 자유롭게 생성할 수 있다.
+
+- Topic 생성
+
+```
+$KAFKA_HOME/bin/kafka-topics.sh --create --topic quickstart-events --bootstrap-server localhost:9092 --partitions 1
+
+ex) .\bin\windows\kafka-topics.bat --create --topic quickstart-events --bootstrap-server localhost:9092 --partitions 1
+```
+
+Topic을 생성한 다음에 Producer는 해당하는 토픽에다가 메세지를 보내게 된다.
+
+Topic에 관심이 있다고 등록한 Consumer가 있을 것이다. 구독 서비스에 새로운 소식이나 알람이 들어왔을 때 그걸 받겠다고 신청. 그러면 Topic에 전달된 내용이 있을 경우에 해당하는 Topic에 전달된 메시지를 Topic에 관심이 있다고 했던 Consumer에 일괄적으로 전달되는 방식
+
+- Topic 목록 확인
+
+```
+$KAFKA_HOME/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list
+
+ex) .\bin\windows\kafka-topics.bat --bootstrap-server localhost:9092 --list
+
+```
+
+- Topic 정보 확인 (좀 더 상세)
+
+```
+$KAFKA_HOME/bin/kafka-topics.sh --describe --topic quickstart-events --bootstrap-server localhost:9092
+```
+
 #### Kafka Producer/Consumer 테스트
 
-- 메시지 생산
+- 메시지 생산 (Producer)
 
 ```
 $KAFKA_HOME\bin\windows\kafka-console-producer.bat --broker-list localhost:9092 --topic quickstart-events
 ```
 
-- 메시지 소비
+- 메시지 소비 (Consumer)
 
 ```
 $KAFKA_HOME\bin\kafka-console-consumer.bat --bootstrap-server localhost:9092 --topic quickstart-events --from-beginning
 ```
+
+#### MariaDB h2-console 접속
+
+- Saved Settings: Generic MySQL
+- Setting Name: Generic MySQL
+- Driver Class: org.mariadb.jdbc.Driver
+- JDBC URL: jdbc:mariadb://localhost:3307/mydb
+- User Name: root
+- Password: password
 
 ### Kafka Connect
 
@@ -104,4 +152,98 @@ $KAFKA_HOME\bin\kafka-console-consumer.bat --bootstrap-server localhost:9092 --t
   - 커스텀 Connector를 통한 다양한 Plugin 제공(File, S3, Hive, Mysql, etc ...)
 
 - 데이터를 가져오는 쪽: Kafka Connect Source
+- Kafka Cluster
 - 데이터를 보내는 쪽: Kafka Connect Sink
+
+특정한 Resource에서 데이터를 가지고 와서 Kafka Cluster에 저장을 한다. 그때 관여 하는 것이 Connect Source 이 Source에는 기존에 있었던 Database 라던가 File 등이 가능이 할 것이고 반대로 Kafka Connect에 저장되어 있었던 데이터 값을 Kafka Connect Sink라는 것을 통해 다른쪽으로 Export 할 수 있다.
+
+- Kafka Connect 실행
+
+```
+.\bin\windows\connect-distributed.bat .\etc\kafka\connect-distributed.properties
+```
+
+connect 실행 시
+
+- connect-configs
+- connect-offsets
+- connect-status
+  와 같은 topic들이 추가가 된다.
+
+### Kafka Source Connect 사용
+
+Source System -> Kafka Connect Source -> Kafka Cluster -> Kafka Connect Sink -> Target System(S3 ...)
+
+#### Kafka Source Connect 추가 (MariaDB)
+
+```
+echo '
+
+{
+  "name" : "my-source-connect",
+  "config" : {
+    "connector.class" : "io.confluent.connect.jdbc.JdbcSourceConnector",
+    "connection.url":"jdbc:mariadb://localhost:3307/mydb",
+    "connection.user":"root",
+    "connection.password":"password",
+    "mode": "incrementing",
+    "incrementing.column.name" : "id",
+    "table.whitelist":"users1",
+    "topic.prefix" : "my_topic_",
+    "tasks.max" : "1"
+  }
+}
+' | curl -X POST -d @- http://localhost:8083/connectors --header "content-Type:application/json"
+```
+
+- Kafka Connect 목록 확인
+
+```
+curl http://localhost:8083/connectors | jq
+```
+
+- Kafka Connect 확인
+
+```
+curl http://localhost:8083/connectors/my-source-connect/status | jq
+```
+
+#### Kafka Sink Connect 추가 (MariaDB)
+
+```
+echo '
+{
+  "name":"my-sink-connect",
+  "config":{
+    # 어떤 connector를 쓸것인가
+    "connector.class":"io.confluent.connect.jdbc.JdbcSinkConnector",
+    "connection.url":"jdbc:mariadb://localhost:3307/mydb",
+    "connection.user":"root",
+    "connection.password":"kk4732",
+    "auto.create":"true",
+    "auto.evolve":"true",
+    "delete.enabled":"false",
+    "tasks.max":"1",
+    "topics":"my_topic_users1"
+  }
+}
+'| curl -X POST -d @- http://localhost:8083/connectors --header "content-Type:application/json"
+```
+
+Topic에 SourceConnect에서 데이터를 전달하게 되면 Topic에 데이터가 쌓임
+Sink Connect가 하는 일은 Topic에서 데이터를 가져와서 사용하는 곳이다.
+
+#### Kafka Producer를 이용해서 Kafka Topic에 데이터 직접 전송
+
+- Kafka-console-producer에서 데이터 전송 -> Topic에 추가 -> MariaDB에 추가
+
+```
+.\bin\windows\kafka-console-producer.bat --broker-list localhost:9092 --topic my_topic_users
+{"schema":{"type":"struct","fields":[{"type":"int32","optional":false,"field":"id"},{"type":"string","optional":true,"field":"user_id"},{"type":"string","optional":true,"field":"pwd"},{"type":"string","optional":true,"field":"name"},{"type":"int64","optional":true,"name":"org.apache.kafka.connect.data.Timestamp","version":1,"field":"created_at"}],"optional":false,"name":"users1"},"payload":{"id":7,"user_id":"user4","pwd":"user4444","name":"User4 name","created_at":1680643371000}}
+```
+
+### 데이터 동기화 Orders -> Catalogs
+
+- Order Service에 요청 된 주문의 수량 정보를 Catalogs Service에 반영
+- Orders Service에서 Kafka Topic으로 메시지 전송 -> Producer
+- Catalogs Service에서 Kafka Topic에 전송 된 메시지 취득 -> Consumer
