@@ -247,3 +247,68 @@ Sink Connect가 하는 일은 Topic에서 데이터를 가져와서 사용하는
 - Order Service에 요청 된 주문의 수량 정보를 Catalogs Service에 반영
 - Orders Service에서 Kafka Topic으로 메시지 전송 -> Producer
 - Catalogs Service에서 Kafka Topic에 전송 된 메시지 취득 -> Consumer
+
+### Multi Order Microservice 사용에 대한 데이터 동기화 문제
+
+- Order Service 2개 기동
+
+  - Users의 요청 분산 처리
+  - Orders 데이터도 분산 저장 -> 동기화 문제
+
+- Order Service에 요청 된 주문 정보를 DB가 아니라 Kafka Topic으로 전송
+- Kafka Topic에 설정 된 Kafka Sink Connect를 사용해 단일 DB에 저장 -> 데이터 동기화
+
+### Multiple Order Service 데이터 동기화
+
+- Order Service의 Producer에서 발생하기 위한 메세지 등록
+
+우리가 가지고 있었던 주문 정보를 어떻게 Topic에 보낼 것인가?
+Topic에 쌓였던 메시지들은 Sink Connector에 의해 불려지고 Sink Connector가 Topic에 있었던
+메시지 내용들을 열어본 다음에 어떻게 저장되어 있는지 파악하고
+JDBC Connector에 그 값을 저장한다. 허나 정해져있는 데이터 포맷으로 저장하지 않으면
+데이터베이스로 저장이 되지 않을 것이다.
+
+```json
+{
+  "shema":{"
+    type":"struct",
+    "fields":[
+      {"type":"string","optional":true,"field":"order_id"},
+      {"type":"string","optional":true,"field":"user_id"},
+      {"type":"string","optional":true,"field":"product_id"},
+      {"type":"int32","optional":true,"field":"qty_id"},
+      {"type":"int32","optional":true,"field":"total_price"},
+      {"type":"int32","optional":true,"field":"unit_price"},
+    ],
+    "optional":false,
+    "name":"orders"
+  },
+  "payload":{
+    "order_id":"asdjflasjdf;lasjdlfjas;dfj",
+    "user_id":"a;ldfj;asldjf;lksdjfldsj",
+    "product_id":"CATALOG-001",
+    "qty":5,
+    "total_price":6000,
+    "unit_price":1200
+  }
+}
+```
+
+- Order Service를 위한 Kafka Sink Connector 추가
+
+```json
+{
+  "name": "my-order-sink-connect",
+  "config": {
+    "connector.class": "io.confluent.connect.jdbc.JdbcSinkConnector",
+    "connection.url": "jdbc:mariadb://localhost:3307/mydb",
+    "connection.user": "root",
+    "connection.password": "kk4732",
+    "auto.create": "true",
+    "auto.evolve": "true",
+    "delete.enabled": "false",
+    "tasks.max": "1",
+    "topics": "my_topic_users1"
+  }
+}
+```
