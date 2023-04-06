@@ -36,3 +36,54 @@ Resilience4j라는 라이브러리로 대체해서 사용한다.
 fault tolenrance?
 : 에러가 발생을 했을때, 에러가 발생을 한다고 하더라도 정상적인
 정상적인 서비스 처럼 가용할 수 있는 라이브러리다.
+
+## Microservice 분산 추적
+
+### Zipkin
+
+- Twitter에서 사용하는 분산 환경의 Timing 데이터 수집, 추적 시스템 (오픈소스)
+- Google Drapper에서 발전하였으며, 분산환경에서의 시스템 병목 현상 파악
+- Collector, Query Service, Databasem WebUI로 구성
+- Sapn
+  - 하나의 요청에 사용되는 작업의 단위
+  - 64bit unique ID
+- Trace
+  - 트리 구조로 이뤄진 Span(여러개) 셋
+  - 하나의 요청에 대한 같은 Trace ID 발급
+
+#### Spring Cloud Sleuth
+
+- 스프링 부트 애플리케이션을 Zipkin과 연동
+- 요청 값에 따른 Trace ID, Span ID 부여
+- Trace와 Span Ids를 로그에 추가 가능
+
+  - serlet filter
+  - rest template
+  - scheduled actions
+  - message channels
+  - feign client
+
+- Zipkin 다운로드 명령어
+
+```
+curl -sSL https://zipkin.io/quickstart.sh | bash -s
+```
+
+- Zipkin 실행 명령어
+
+```
+java -jar zipkin.jar
+```
+
+- Zipkin 접속
+
+```
+http://localhost:9411/zipkin/
+```
+
+- Zipkin dependency 추가(오류로 2.2.3.RELEASE 버전 사용)
+
+```
+// https://mvnrepository.com/artifact/org.springframework.cloud/spring-cloud-starter-zipkin
+	implementation group: 'org.springframework.cloud', name: 'spring-cloud-starter-zipkin', version: '2.2.3.RELEASE'
+```
